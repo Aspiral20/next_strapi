@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  db:
+    container_name: strapi-db
+    image: postgres:12.0-alpine
+    platform: linux/amd64
+    env_file:
+      - ./api/.env
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME}
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    volumes:
+      - strapi-data:/var/lib/postgresql/data/ #using a volume
+      #- ./data:/var/lib/postgresql/data/ # if you want to use a bind folder
+    networks:
+      - strapi
+
+  api:
+    container_name: strapi-api
+    image: strapi:latest
+    build:
+      context: ./api
+      target: development
+    env_file:
+      - ./api/.env
+    environment:
+      DATABASE_CLIENT: ${DATABASE_CLIENT}
+      DATABASE_HOST: strapiDB
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USERNAME: ${DATABASE_USERNAME}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_JWT_SECRET: ${ADMIN_JWT_SECRET}
+      APP_KEYS: ${APP_KEYS}
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "1337:1337"
+    restart: unless-stopped
+    volumes:
+      - ./api/config:/opt/app/config
+      - ./api/src:/opt/app/src
+      - ./api/package.json:/opt/package.json
+      - ./api/yarn.lock:/opt/yarn.lock
+      - ./api/.env:/opt/app/.env
+      - ./api/public/uploads:/opt/app/public/uploads
+    networks:
+      - strapi
+    depends_on:
+      - db
+
+  front:
+    container_name: strapi-front
+    build:
+      context: ./next-front
+      target: development
+    command: yarn dev
+    env_file:
+      - ./development/.development.env
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+    restart: unless-stopped
+    networks:
+      - strapi
+    volumes:
+      - ./client/.:/app
+      - ./app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+
+networks:
+  strapi:
